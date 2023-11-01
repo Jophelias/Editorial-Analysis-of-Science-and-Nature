@@ -1,0 +1,124 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#just extracting the csv files and putting them all into a single file
+
+```{r}
+library(dplyr)
+library(readxl)
+library(stringr)
+library(tidyverse)
+library(lubridate) # This is to help deal with dates
+library(stringr)
+
+
+```
+
+```{r}
+
+
+files <- list.files(path = "wos.data/articles.letters", pattern = "*.xls", full.names = T)
+tbl <- sapply(files, read_excel, simplify=FALSE) 
+
+the.df <- NULL
+for (file in tbl) {
+  the.df <- bind_rows(the.df, as.data.frame(file[29:529,]))
+}
+colnames(the.df) <- as.data.frame(tbl[1])[28,]
+
+write.csv(the.df, "all.letters.articles.csv", row.names = F)
+
+```
+
+```{r}
+
+my.time.format <- function(date){
+  
+  return(as.POSIXct(strptime(date, format = "%B %d %Y")))
+}
+
+the.df.fixed <- the.df %>% select(c(-3:-5, -11:-13,-16,-18:-19)) %>% mutate_at(.funs = as.numeric ,.vars = c("Publication Year", "Volume", "Issue", "Beginning Page", "Ending Page", "Total Citations")) %>% mutate_at(.funs = my.time.format, .vars = "Publication Date") %>% mutate(day.of.month = day(`Publication Date`), month.of.year = month(`Publication Date`))%>% mutate(Number.of.authors = str_count(`Authors`, ';') + 1, nu.of.pages = ifelse(is.na(`Ending Page`), 1, `Ending Page` - `Beginning Page`))
+
+write.csv(the.df.fixed, "all.letters.articles.clean.csv", row.names = F)
+```
+
+
+
+```{r}
+
+
+articles.files <- list.files(path = "wos.data/articles.only", pattern = "*.xls", full.names = T)
+articles.tbl <- sapply(articles.files, read_excel, simplify=FALSE) 
+
+articles.df <- NULL
+for (file in articles.tbl) {
+  articles.df <- bind_rows(articles.df, as.data.frame(file[29:529,]))
+}
+colnames(articles.df) <- as.data.frame(articles.tbl[1])[28,]
+
+write.csv(articles.df, "only.articles.csv", row.names = F)
+
+articles.df.fixed <- articles.df %>% select(c(-3:-5, -11:-13,-16,-18:-19)) %>% mutate_at(.funs = as.numeric ,.vars = c("Publication Year", "Volume", "Issue", "Beginning Page", "Ending Page", "Total Citations")) %>% mutate_at(.funs = my.time.format, .vars = "Publication Date") %>% mutate(day.of.month = day(`Publication Date`), month.of.year = month(`Publication Date`))%>% mutate(Number.of.authors = str_count(`Authors`, ';') + 1, nu.of.pages = ifelse(is.na(`Ending Page`), 1, `Ending Page` - `Beginning Page`))
+
+write.csv(articles.df.fixed, "only.articles.clean.csv", row.names = F)
+
+```
+
+#Now let's write some code to take in the manually collected data, and use it to label the larger datasets
+
+```{r}
+
+manual.data <- read_excel("Article Listing.xlsx")
+
+test <- manual.data$Article %in% articles.df.fixed$Title
+
+test <- manual.data$Article %in% the.df.fixed$Title
+
+#%in% is for full matching. let's tru pmatch or charmatch for partial matching
+
+test.2 <- charmatch(manual.data$Article, articles.df.fixed$Title)
+test.3 <- charmatch(manual.data$doi, articles.df.fixed$DOI)
+
+# it wasnt catching all the articles because of things like hyphens and spelling mistakes. So I did it manually. 06-14-2019
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

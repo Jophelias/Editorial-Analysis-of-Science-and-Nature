@@ -1,0 +1,152 @@
+---
+title: "small sample summary"
+output: html_notebook
+---
+
+```{r}
+library(dplyr)
+#library(readxl)
+#library(stringr)
+library(tidyr)
+#library(lubridate) # This is to help deal with dates
+#library(stringr)
+#library(ggplot2)
+#library(stargazer)
+library(Hmisc) # so I can output in ltex easily the summary table
+library(data.table)
+
+
+```
+
+
+```{r}
+rm(list= c('articles.df', 'articles.df.fixed', 'articles.tbl', 'file', 'manual.data', 'small.sample.data', 'small.sample.data.join', 'tbl', 'test', 'the.df', 'the.df.fixed', 'wos.articles.subframe'))
+
+rm(list = c('articles.files', 'files', 'temp', 'test.2', 'test.3', 'my.time.format'))
+
+save.image(file = "summaruandviz.backup")
+
+latex(summary(final.small.sample))
+
+#we need one more feature 
+
+stargazer(summary(final.small.sample), type = "html", out = "small.sample.summary.doc")
+
+capture.output(print(summary(final.small.sample), prmsd=TRUE, digits=1), file="small.sample.summary.txt")
+
+#We need citations adjusted for time
+
+final.small.sample <- final.small.sample %>% mutate(cite.time.adj = `Google citations` / as.integer(difftime('2019-06-01', Issue, units = "weeks")))
+
+
+capture.output(print(summary(final.small.sample), prmsd=TRUE, digits=1), file="small.sample.summary.txt")
+```
+
+```{r}
+
+final.small.sample$time.to.acceptance <- as.numeric(final.small.sample$time.to.acceptance)
+final.small.sample$time.to.publish <- as.numeric(final.small.sample$time.to.publish)
+final.small.sample$time.to.publish.from.acceptance <- as.numeric(final.small.sample$time.to.publish.from.acceptance)
+
+#let's start by summarizing the data based on whether they're css or not. 
+
+summary.by.group <- final.small.sample %>% group_by(Class) %>% summarise_if(is.numeric, .funs = c(min,  median, mean, max))
+
+#let's try it by filtering
+
+summary.cs <- final.small.sample %>% filter(Class == "CS") 
+summary.css <- final.small.sample %>% filter(Class == "CSS") 
+summary.ss <- final.small.sample %>% filter(Class == "SS") 
+summary.natural <- final.small.sample %>% filter(Class == "Natural") 
+
+capture.output(print(summary(summary.cs), prmsd=TRUE, digits=1), file="summary.cs.txt")
+
+capture.output(print(summary(summary.css), prmsd=TRUE, digits=1), file="summary.css.txt")
+
+capture.output(print(summary(summary.ss), prmsd=TRUE, digits=1), file="summary.ss.txt")
+
+capture.output(print(summary(summary.natural), prmsd=TRUE, digits=1), file="summary.natural.txt")
+
+# #https://stackoverflow.com/questions/40375390/dplyr-multiple-summary-functions
+# 
+# dt.test <- data.table(sapply(final.small.sample, summary), keep.rownames = T) 
+# 
+# summary.by.group <- final.small.sample %>% group_by(Class) %>% summarise_if(is.numeric, funs(summary))
+# another.test <- gather(final.small.sample) %>% group_by(Class) %>% summarise_all(funs(min,max))
+
+```
+
+#Let's do boxplots
+
+```{r}
+
+category.plot <- ggplot(final.small.sample) + geom_bar(aes(x= Category, fill = Class, label = Category), stat = "count") + theme_light(base_size = 12) + xlab("Editor Assigned Category") + ylab("Frequency") + ggtitle("Classification Given Category (2016-2019)") + theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1.5, size = 5)) 
+
+ggsave(plot = category.plot, "small.sample.plots/category.plot.png", dpi = 600, width = 9,  height = 5, units = 'in')
+
+citations.plot <- ggplot(final.small.sample) + geom_boxplot(aes(x= Class, y = `Google citations`, color = Class)) + theme_light(base_size = 14, family = "Helvetica Serif") + xlab("Classification") + ylab("Google Citations") + ggtitle("Citations (2016-2019)") + theme(plot.title = element_text(hjust = 0.5))
+
+ggsave(plot = citations.plot, "small.sample.plots/citations.plot.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+length.plot <- ggplot(final.small.sample) + geom_boxplot(aes(x= Class, y = Length, color = Class)) + theme_light(base_size = 14) + xlab("Classification") + ylab("Length (pages)") + ggtitle("Length (2016-2019)") + theme(plot.title = element_text(hjust = 0.5))
+
+ggsave(plot = length.plot, "small.sample.plots/length.plot.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+citation.count.plot <- ggplot(final.small.sample) + geom_boxplot(aes(x= Class, y = CitationCount, color = Class)) + theme_light(base_size = 14) + xlab("Classification") + ylab("Papers Cited") + ggtitle("Papers Cited (2016-2019)") + theme(plot.title = element_text(hjust = 0.5))
+
+ggsave(plot = citation.count.plot, "small.sample.plots/citation.count.plot.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+authors.plot <- ggplot(final.small.sample) + geom_boxplot(aes(x= Class, y= nu.authors, color = Class)) + theme_light(base_size = 14) + xlab("Classification") + ylab("Number of Authors") + ggtitle("Number of Authors on a Paper (2016-2019)") + theme(plot.title = element_text(hjust = 0.5)) + scale_y_continuous("Number of Authors", breaks = seq(0,100, 10), minor_breaks = seq(0,100, 5))
+
+ggsave(plot = authors.plot, "small.sample.plots/authors.plot.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+time.to.acceptance.plot <- ggplot(final.small.sample) + geom_boxplot(aes(x= Class, y= time.to.acceptance, color = Class)) + theme_light(base_size = 14) + xlab("Classification") + ylab("Acceptance Time (days)") + ggtitle("Time to Acceptance (2016-2019)") + theme(plot.title = element_text(hjust = 0.5)) #+ scale_y_continuous("Acceptance Time (days)", breaks = seq(0,100, 10), minor_breaks = seq(0,100, 5))
+
+ggsave(plot = time.to.acceptance.plot, "small.sample.plots/time.to.acceptance.plot.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+
+time.to.publish.plot <- ggplot(final.small.sample) + geom_boxplot(aes(x= Class, y= time.to.publish, color = Class)) + theme_light(base_size = 14) + xlab("Classification") + ylab("Publication Time (days)") + ggtitle("Publication Time (2016-2019)") + theme(plot.title = element_text(hjust = 0.5)) #+ scale_y_continuous("Publication Time (days)", breaks = seq(0,100, 10), minor_breaks = seq(0,100, 5))
+
+ggsave(plot = time.to.publish.plot, "small.sample.plots/time.to.publish.plot.png", dpi = 600, width = 6,  height = 5, units = 'in')
+       
+time.to.publish.from.acceptance.plot <- ggplot(final.small.sample %>% filter(time.to.publish.from.acceptance > 0)) + geom_boxplot(aes(x= Class, y= time.to.publish.from.acceptance, color = Class)) + theme_light(base_size = 14) + xlab("Classification") + ylab("Time to Publish From Acceptance (days)") + ggtitle("Time to Publish From Acceptance (2016-2019)") #+ theme(plot.title = element_text(hjust = 0.5)) + scale_y_continuous("Time to Publish From Acceptance (days)", breaks = seq(0,100, 10), minor_breaks = seq(0,100, 5))
+
+ggsave(plot = time.to.publish.from.acceptance.plot, "small.sample.plots/time.to.publish.from.acceptance.plot.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+cite.time.adj.plot <- ggplot(final.small.sample) + geom_boxplot(aes(x= Class, y= cite.time.adj, color = Class)) + theme_light(base_size = 14) + xlab("Classification") + ylab("Citation Rate [Adjusted] (per week)") + ggtitle("Citation Rate [Adjusted] (per week) (2016-2019)") + theme(plot.title = element_text(hjust = 0.5)) #+ scale_y_continuous("Citation Rate [Adjusted] (per week)", breaks = seq(0,100, 10), minor_breaks = seq(0,100, 5))
+
+ggsave(plot = cite.time.adj.plot, "small.sample.plots/cite.time.adj.plot.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+#we'll need to melt it for the coming bar
+
+final.sample.melted <- final.small.sample %>% select(Journal, Statistics, Formulas, Visuals, Networks, Simulation, Class) %>% melt(measure.vars = c(2,3,4,5,6), variable.name = "manual.feature", variable.factor = T, value.factor = T) %>% filter(value == TRUE) %>% filter(Class %in% c("Natural", "CSS"))
+
+manual.feature.plot <- ggplot(final.sample.melted) + geom_bar(aes(x= manual.feature, fill = Class), position = "fill", stat = "count") + theme_light(base_size = 12) + ylab("Proportion") + ggtitle("Manually Collected Features (2016-2019)") + theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1, size = 12)) + geom_hline(linetype = 2, yintercept = 0.5) + xlab("")
+
+ggsave(plot = manual.feature.plot, "small.sample.plots/manual.feature.plot.png", dpi = 600, width = 9,  height = 5, units = 'in')
+
+
+
+```
+
+#let's look at the univariates
+
+```{r}
+
+distributions <- NULL
+
+distributions$citations <- hist(final.small.sample$`Google citations`, breaks ="Sturges")
+distributions$Length <- hist(final.small.sample$Length, breaks ="Sturges")
+distributions$citation.count <- hist(final.small.sample$CitationCount, breaks ="Sturges")
+distributions$number.authors <- hist(final.small.sample$nu.authors, breaks ="Sturges")
+distributions$time.to.acceptance <- hist(final.small.sample$time.to.acceptance, breaks ="Sturges")
+distributions$time.to.publish <- hist(final.small.sample$time.to.publish, breaks ="Sturges")
+distributions$time.to.publish.from.acceptance <- hist((final.small.sample %>% filter(time.to.publish.from.acceptance >0))$time.to.publish.from.acceptance , breaks ="Sturges")
+distributions$cite.time.adj <- hist(final.small.sample$cite.time.adj, breaks ="Sturges")
+
+
+
+
+
+
+```

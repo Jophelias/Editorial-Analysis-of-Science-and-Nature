@@ -1,0 +1,246 @@
+---
+title: "small sample summary"
+output: html_notebook
+---
+
+```{r}
+library(dplyr)
+#library(readxl)
+#library(stringr)
+library(tidyr)
+#library(lubridate) # This is to help deal with dates
+#library(stringr)
+library(ggplot2)
+library(stargazer)
+#library(Hmisc) # so I can output in ltex easily the summary table
+library(data.table)
+library(scales)
+library(RColorBrewer)
+library(stargazer)
+library(poweRlaw)
+
+```
+
+
+```{r}
+rm(list= c('authors.plot', 'category.plot', 'citation.count.plot', 'citations.plot', 'cite.time.adj.plot', 'dt.test', 'final.sample.melted', 'length.plot', 'manual.feature.plot', 'summary.by.group', 'time.to.acceptance.plot', 'time.to.publish.plot', 'time.to.publish.from.acceptance.plot'))
+save.image(file = "4.univariatepowerlaw.backup")
+```
+
+#Citations
+
+```{r}
+#citations
+
+small.sample <- final.small.sample %>% filter(Class %in% c("Natural", "CSS"))
+small.sample$Class <- factor(small.sample$Class)
+
+#citations.breaks <-  c(0,1, as.integer(exp(seq(1, log(max(small.sample$`Google citations`)), 0.6))))
+#citations.breaks[12] <- 604
+
+citations.breaks <-  as.integer(seq(0, max(small.sample$`Google citations`), max(small.sample$`Google citations`)/20))
+
+final.sample.citations <- small.sample %>% group_by(Class, citation.bins = cut(`Google citations`, citations.breaks, include.lowest = T)) %>% summarise(Frequency = n()) #%>% filter(!is.na(citation.bins))
+
+#final.sample.citations$citation.bins <- as.numeric(sub("\\((.+),.*", "\\1", final.sample.citations$citation.bins)) #lb
+final.sample.citations$citation.bins <- as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", final.sample.citations$citation.bins))
+
+citation.dist.plot <- ggplot(final.sample.citations, aes(x= citation.bins, y=Frequency, color = Class, shape = Class)) + geom_point() + annotation_logticks() + scale_x_log10("Google Citations (Log-scale)", breaks = trans_breaks("log10", function(x) 10^x),
+              labels = trans_format("log10", math_format(10^.x))) +
+     scale_y_log10("Frequency (Log-scale)", breaks = trans_breaks("log10", function(x) 10^x),
+              labels = trans_format("log10", math_format(10^.x))) + theme_bw(base_size = 12, base_family = "serif") + geom_smooth(se = F, method = "lm")
+
+ggsave(plot = citation.dist.plot, "univariate/googlecitationsdist.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+
+```
+
+#length
+
+```{r}
+#length
+
+length.breaks <-  c(1, as.integer(exp(seq(1, log(max(final.small.sample$Length)), 0.25))))
+
+#citations.breaks <-  c(0,1, as.integer(exp(seq(1, log(max(small.sample$`Google citations`)), 0.6))))
+#citations.breaks[12] <- 604
+
+length.breaks <-  0:13
+
+final.sample.length <- small.sample %>% group_by(Class, length.bins = cut(Length, length.breaks, include.lowest = T)) %>% summarise(Frequency = n()) #%>% filter(!is.na(citation.bins))
+
+#final.sample.Length$citation.bins <- as.numeric(sub("\\((.+),.*", "\\1", final.sample.Length$citation.bins)) #lb
+final.sample.length$length.bins <- as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", final.sample.length$length.bins))
+
+length.dist.plot <- ggplot(final.sample.length, aes(x= length.bins, y=Frequency, color = Class, shape = Class)) + geom_point() + scale_x_continuous("Length (pages)", breaks = 0:13,
+              labels = 0:13) +
+     scale_y_continuous("Frequency") + theme_bw(base_size = 12, base_family = "serif") + geom_smooth(se = F, method = "auto") + geom_vline(xintercept=3, linetype="dashed", 
+                color = "red", size=0.5) + geom_text(aes(x=3, label="lower bound", y=15), colour="green", angle=90, vjust = 1.2, size = 3) + geom_text(aes(x=9, label="upper bound", y=15), colour="orange", angle=90, vjust = 1.2, size = 3) + geom_vline(xintercept=9, linetype="dashed", color = "orange", size=0.5)
+
+ggsave(plot = length.dist.plot, "univariate/length.dist.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+
+```
+
+#Citation count
+
+```{r}
+#length
+
+citation.count.breaks <-  c(1, as.integer(exp(seq(1, log(max(final.small.sample$CitationCount)), 0.25))))
+
+#citations.breaks <-  c(0,1, as.integer(exp(seq(1, log(max(small.sample$`Google citations`)), 0.6))))
+#citations.breaks[12] <- 604
+
+citation.count.breaks <- seq(0, 150, 10)
+
+final.sample.CitationCount <- small.sample %>% group_by(Class, CitationCount.bins = cut(CitationCount, citation.count.breaks, include.lowest = T)) %>% summarise(Frequency = n()) #%>% filter(!is.na(citation.bins))
+
+final.sample.CitationCount$CitationCount.bins <- as.numeric(sub("\\((.+),.*", "\\1", final.sample.CitationCount$CitationCount.bins)) #lb
+#final.sample.CitationCount$CitationCount.bins <- as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", final.sample.CitationCount$CitationCount.bins))
+
+CitationCount.dist.plot <- ggplot(final.sample.CitationCount, aes(x= CitationCount.bins, y=Frequency, color = Class, shape = Class)) + geom_point() + scale_x_continuous("Works Cited (bins placed at LB)", breaks = seq(0, 150, 10),
+              labels = seq(0, 150, 10)) +
+     scale_y_continuous("Frequency") + theme_bw(base_size = 12, base_family = "serif") + geom_smooth(se = F, method = "auto") + geom_vline(xintercept=10, linetype="dashed", 
+                color = "red", size=0.5) + geom_text(aes(x=9, label="CSS ower bound", y=7.5), colour="green", angle=90, vjust = 1.2, size = 3) + geom_vline(xintercept=20, linetype="dashed", 
+                color = "red", size=0.5) + geom_text(aes(x=19, label="natural science lower bound", y=10), colour="orange", angle=90, vjust = 1.2, size = 3)
+
+ggsave(plot = CitationCount.dist.plot, "univariate/citation.count.dist.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+
+```
+
+
+```{r}
+#authors
+
+#num.authors.breaks <-  c(1, as.integer(exp(seq(1, log(max(final.small.sample$nu.authors)), 0.25))))
+
+#citations.breaks <-  c(0,1, as.integer(exp(seq(1, log(max(small.sample$`Google citations`)), 0.6))))
+#citations.breaks[12] <- 604
+
+num.authors.breaks <- seq(0, 100, 5)
+
+final.sample.num.authors <- small.sample %>% group_by(Class, num.authors.bins = cut(nu.authors, num.authors.breaks, include.lowest = T)) %>% summarise(Frequency = n()) #%>% filter(!is.na(citation.bins))
+
+#final.sample.num.authors$num.authors.bins <- as.numeric(sub("\\((.+),.*", "\\1", final.sample.num.authors$num.authors.bins)) #lb
+final.sample.num.authors$num.authors.bins <- as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", final.sample.num.authors$num.authors.bins))
+
+num.authors.dist.plot <- ggplot(final.sample.num.authors, aes(x= num.authors.bins, y=Frequency, color = Class, shape = Class)) + geom_point() + scale_x_continuous("Number of Authors (bins placed at UB)", breaks = seq(0, 100, 5),
+              labels = seq(0, 100, 5)) +
+     scale_y_continuous("Frequency") + theme_bw(base_size = 12, base_family = "serif") 
+# + geom_smooth(se = F, method = "auto") + geom_vline(xintercept=10, linetype="dashed", 
+#                 color = "red", size=0.5) + geom_text(aes(x=9, label="CSS ower bound", y=7.5), colour="green", angle=90, vjust = 1.2, size = 3) + geom_vline(xintercept=20, linetype="dashed", 
+#                 color = "red", size=0.5) + geom_text(aes(x=19, label="natural science lower bound", y=10), colour="orange", angle=90, vjust = 1.2, size = 3)
+
+ggsave(plot = num.authors.dist.plot, "univariate/num.authors.dist.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+
+```
+
+
+```{r}
+#authors
+
+#num.authors.breaks <-  c(1, as.integer(exp(seq(1, log(max(final.small.sample$nu.authors)), 0.25))))
+
+#citations.breaks <-  c(0,1, as.integer(exp(seq(1, log(max(small.sample$`Google citations`)), 0.6))))
+#citations.breaks[12] <- 604
+
+num.authors.breaks <- seq(0, 100, 5)
+
+final.sample.num.authors <- small.sample %>% group_by(Class, num.authors.bins = cut(nu.authors, num.authors.breaks, include.lowest = T)) %>% summarise(Frequency = n()) #%>% filter(!is.na(citation.bins))
+
+#final.sample.num.authors$num.authors.bins <- as.numeric(sub("\\((.+),.*", "\\1", final.sample.num.authors$num.authors.bins)) #lb
+final.sample.num.authors$num.authors.bins <- as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", final.sample.num.authors$num.authors.bins))
+
+num.authors.dist.plot <- ggplot(final.sample.num.authors, aes(x= num.authors.bins, y=Frequency, color = Class, shape = Class)) + geom_point() + scale_x_continuous("Number of Authors (bins placed at UB)", breaks = seq(0, 100, 5),
+              labels = seq(0, 100, 5)) +
+     scale_y_continuous("Frequency") + theme_bw(base_size = 12, base_family = "serif") 
+# + geom_smooth(se = F, method = "auto") + geom_vline(xintercept=10, linetype="dashed", 
+#                 color = "red", size=0.5) + geom_text(aes(x=9, label="CSS ower bound", y=7.5), colour="green", angle=90, vjust = 1.2, size = 3) + geom_vline(xintercept=20, linetype="dashed", 
+#                 color = "red", size=0.5) + geom_text(aes(x=19, label="natural science lower bound", y=10), colour="orange", angle=90, vjust = 1.2, size = 3)
+
+ggsave(plot = num.authors.dist.plot, "univariate/num.authors.dist.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+
+```
+
+```{r}
+#adjusted citations
+
+
+#cite.time.adj.breaks <-  c(1, as.integer(exp(seq(1, log(max(final.small.sample$cite.time.adj)), 0.1))))
+
+
+
+cite.time.adj.breaks <-  seq(0,7, 0.15)
+
+final.sample.cite.time.adj <- small.sample %>% group_by(Class, cite.time.adj.bins = cut(cite.time.adj, cite.time.adj.breaks, include.lowest = T)) %>% summarise(Frequency = n()) #%>% filter(!is.na(citation.bins))
+
+#final.sample.citations$citation.bins <- as.numeric(sub("\\((.+),.*", "\\1", final.sample.citations$citation.bins)) #lb
+final.sample.cite.time.adj$cite.time.adj.bins <- as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", final.sample.cite.time.adj$cite.time.adj.bins))
+
+cite.time.adj.dist.plot <- ggplot(final.sample.cite.time.adj, aes(x= cite.time.adj.bins, y=Frequency, color = Class, shape = Class)) + geom_point() + annotation_logticks() + scale_x_log10("Citations Adjusted for Publication Time [Weekly] (Log-scale)", breaks = trans_breaks("log10", function(x) 10^x),
+              labels = trans_format("log10", math_format(10^.x))) +
+     scale_y_log10("Frequency (Log-scale)", breaks = trans_breaks("log10", function(x) 10^x),
+              labels = trans_format("log10", math_format(10^.x))) + theme_bw(base_size = 12, base_family = "serif") + geom_smooth(se = F, method = "lm")
+
+ggsave(plot =cite.time.adj.dist.plot, "univariate/cite.time.adj.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+```
+
+```{r}
+time.to.acceptance.breaks <-  seq(0,700, 30)
+
+final.sample.time.to.acceptance <- small.sample %>% group_by(Class, time.to.acceptance.bins = cut(time.to.acceptance, time.to.acceptance.breaks, include.lowest = T)) %>% summarise(Frequency = n()) #%>% filter(!is.na(citation.bins))
+
+#final.sample.time.to.acceptance$time.to.acceptance.bins <- as.numeric(sub("\\((.+),.*", "\\1", final.sample.time.to.acceptance$time.to.acceptance.bins)) #lb
+final.sample.time.to.acceptance$time.to.acceptance.bins <- as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", final.sample.time.to.acceptance$time.to.acceptance.bins))
+
+time.to.acceptance.dist.plot <- ggplot(final.sample.time.to.acceptance, aes(x= time.to.acceptance.bins, y=Frequency, color = Class, shape = Class)) + geom_point() + scale_x_continuous("Time to Acceptance (bins placed at UB)", breaks = seq(0, 750, 50),
+              labels = seq(0, 750, 50)) +
+     scale_y_continuous("Frequency") + theme_bw(base_size = 12, base_family = "serif") + geom_smooth(se = F, method = "auto") #+ geom_vline(xintercept=10, linetype="dashed", 
+#                 color = "red", size=0.5) + geom_text(aes(x=9, label="CSS ower bound", y=7.5), colour="green", angle=90, vjust = 1.2, size = 3) + geom_vline(xintercept=20, linetype="dashed", 
+#                 color = "red", size=0.5) + geom_text(aes(x=19, label="natural science lower bound", y=10), colour="orange", angle=90, vjust = 1.2, size = 3)
+
+ggsave(plot = time.to.acceptance.dist.plot, "univariate/time.to.acceptance.dist.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+```
+
+```{r}
+time.to.publish.breaks <- seq(0,700, 30)
+
+final.sample.time.to.publish <- small.sample %>% group_by(Class, time.to.publish.bins = cut(time.to.publish, time.to.publish.breaks, include.lowest = T)) %>% summarise(Frequency = n()) #%>% filter(!is.na(citation.bins))
+
+#final.sample.time.to.publish$time.to.publish.bins <- as.numeric(sub("\\((.+),.*", "\\1", final.sample.time.to.publish$time.to.publish.bins)) #lb
+final.sample.time.to.publish$time.to.publish.bins <- as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", final.sample.time.to.publish$time.to.publish.bins))
+
+time.to.publish.dist.plot <- ggplot(final.sample.time.to.publish, aes(x= time.to.publish.bins, y=Frequency, color = Class, shape = Class)) + geom_point() + scale_x_continuous("Time to Publish (bins placed at UB)", breaks = seq(0, 750, 50),
+              labels = seq(0, 750, 50)) +
+     scale_y_continuous("Frequency") + theme_bw(base_size = 12, base_family = "serif") + geom_smooth(se = F, method = "auto") #+ geom_vline(xintercept=10, linetype="dashed", 
+#                 color = "red", size=0.5) + geom_text(aes(x=9, label="CSS ower bound", y=7.5), colour="green", angle=90, vjust = 1.2, size = 3) + geom_vline(xintercept=20, linetype="dashed", 
+#                 color = "red", size=0.5) + geom_text(aes(x=19, label="natural science lower bound", y=10), colour="orange", angle=90, vjust = 1.2, size = 3)
+
+ggsave(plot = time.to.publish.dist.plot, "univariate/time.to.publish.dist.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+```
+
+```{r}
+
+#time.to.publish.from.acceptance.breaks <-  c(1, as.integer(exp(seq(1, log(max(final.small.sample$time.to.publish.from.acceptance)), 0.25))))
+
+time.to.publish.from.acceptance.breaks <- seq(0,125, 5)
+
+final.sample.time.to.publish.from.acceptance <- small.sample %>% group_by(Class, time.to.publish.from.acceptance.bins = cut(time.to.publish.from.acceptance, time.to.publish.from.acceptance.breaks, include.lowest = T)) %>% summarise(Frequency = n()) #%>% filter(!is.na(citation.bins))
+
+#final.sample.time.to.publish.from.acceptance$time.to.publish.from.acceptance.bins <- as.numeric(sub("\\((.+),.*", "\\1", final.sample.time.to.publish.from.acceptance$time.to.publish.from.acceptance.bins)) #lb
+final.sample.time.to.publish.from.acceptance$time.to.publish.from.acceptance.bins <- as.numeric( sub("[^,]*,([^]]*)\\]", "\\1", final.sample.time.to.publish.from.acceptance$time.to.publish.from.acceptance.bins))
+
+time.to.publish.from.acceptance.dist.plot <- ggplot(final.sample.time.to.publish.from.acceptance, aes(x= time.to.publish.from.acceptance.bins, y=Frequency, color = Class, shape = Class)) + geom_point() + scale_x_continuous("Time to Publish From Acceptance Date (bins placed at UB)", breaks = seq(0, 750, 50), labels = seq(0, 750, 50)) + scale_y_continuous("Frequency") + theme_bw(base_size = 12, base_family = "serif") + geom_smooth(se = F, method = "auto") #+ geom_vline(xintercept=10, linetype="dashed", 
+#                 color = "red", size=0.5) + geom_text(aes(x=9, label="CSS ower bound", y=7.5), colour="green", angle=90, vjust = 1.2, size = 3) + geom_vline(xintercept=20, linetype="dashed", 
+#                 color = "red", size=0.5) + geom_text(aes(x=19, label="natural science lower bound", y=10), colour="orange", angle=90, vjust = 1.2, size = 3)
+
+ggsave(plot = time.to.publish.from.acceptance.dist.plot, "univariate/time.to.publish.from.acceptance.dist.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+```

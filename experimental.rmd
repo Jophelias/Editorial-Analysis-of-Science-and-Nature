@@ -1,0 +1,25 @@
+---
+title: "Experimental Analysis in citation packges"
+output: html_notebook
+---
+
+
+# 5-29-2019
+#https://cran.r-project.org/web/packages/wosr/wosr.pdf
+
+
+```{r}
+library(wosr)
+library(bibliometrix)
+library(RefManageR)
+```
+
+#Let's try using the wosr package to download some data
+
+```{r}
+sid <- auth(username = "jshaheen@gmu.edu", password = "Nana1958!") # This lets me not specify a user id but use IP-based authentication. Maybe simpler?
+
+
+
+```
+

@@ -1,0 +1,242 @@
+---
+title: "KNN and K-Means"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(dplyr)
+#library(readxl)
+#library(stringr)
+library(tidyr)
+#library(lubridate) # This is to help deal with dates
+#library(stringr)
+library(ggplot2)
+library(stargazer)
+#library(Hmisc) # so I can output in ltex easily the summary table
+library(data.table)
+library(scales)
+library(RColorBrewer)
+library(stargazer)
+library(poweRlaw)
+library(cluster)
+library(ISLR)
+library(caTools)
+library(class)
+library(corrplot)
+library(dbscan) # to use knnplot function
+library(caret)
+
+```
+```{r}
+cor.mtest <- function(mat, ...) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat<- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+        for (j in (i + 1):n) {
+            tmp <- cor.test(mat[, i], mat[, j], ...)
+            p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+        }
+    }
+  colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat
+}
+# matrix of the p-value of the correlation
+
+decisionplot <- function(model, data, class = NULL, predict_type = "class",
+  resolution = 100, showgrid = TRUE, ...) {
+
+  if(!is.null(class)) cl <- data[,class] else cl <- 1
+  data <- data[,1:2]
+  k <- length(unique(cl))
+
+  plot(data, col = as.integer(cl)+1L, pch = as.integer(cl)+1L, ...)
+
+  # make grid
+  r <- sapply(data, range, na.rm = TRUE)
+  xs <- seq(r[1,1], r[2,1], length.out = resolution)
+  ys <- seq(r[1,2], r[2,2], length.out = resolution)
+  g <- cbind(rep(xs, each=resolution), rep(ys, time = resolution))
+  colnames(g) <- colnames(r)
+  g <- as.data.frame(g)
+
+  ### guess how to get class labels from predict
+  ### (unfortunately not very consistent between models)
+  p <- predict(model, g, type = predict_type)
+  if(is.list(p)) p <- p$class
+  p <- as.factor(p)
+
+  if(showgrid) points(g, col = as.integer(p)+1L, pch = ".")
+
+  z <- matrix(as.integer(p), nrow = resolution, byrow = TRUE)
+  contour(xs, ys, z, add = TRUE, drawlabels = FALSE,
+    lwd = 2, levels = (1:(k-1))+.5)
+
+  invisible(z)
+}
+```
+
+
+
+```{r}
+
+#first let's convert the binary variables to 0s and 1.
+small.sample.machine <- small.sample %>% mutate_if(is.logical, as.integer) %>% select(-c(1:4,6,9:11,14, 17:20,23:31)) %>% drop_na()
+
+small.sample.norm <- scale(small.sample.machine[, colnames(small.sample.machine) != "Class"]) #Scaling to control the variance levels
+small.sample.response <- as.data.frame(small.sample$Class)
+
+# Let's check the variance
+
+small.sample.var <- var(small.sample.norm) # Also checks the covariance?
+p.mat <- cor.mtest(small.sample.norm )
+
+png(height=1200, width=1200, file="knn.model/corplot.free.png", type = "cairo", pointsize = 20)
+small.sample.cor.plot <- corrplot(var(small.sample.norm), method="pie")
+dev.off()
+png(height=1200, width=1200, file="knn.model/corplot.sig.png", type = "cairo", pointsize = 20)
+small.sample.cor.plot.sig <- corrplot(var(small.sample.norm), method="pie", p.mat = p.mat, sig.level = 0.05)
+dev.off() # Pearson's product moment
+
+full.small.data <- data.frame(small.sample.norm, small.sample.response)
+small.data.split <- sample.split(full.small.data, 0.7) 
+
+small.data.training <- full.small.data[small.data.split,]
+small.data.testing <- full.small.data[!small.data.split,]
+training.class <- small.data.training$small.sample.Class
+testing.class <- small.data.testing$small.sample.Class
+small.data.training <- small.data.training[, -13]
+small.data.testing <- small.data.testing[, -13]
+
+
+class.model <- knn(small.data.training, small.data.testing, training.class, k = 1)
+summary(class.model)
+class.model
+
+missclass.rate <- mean(class.model != testing.class)
+
+new.class.model <- NULL
+class.misclass <- NULL
+
+for (i in 1:10) {
+  new.class.model <- knn(small.data.training, small.data.testing, training.class, k = i)
+  class.misclass[i] <- mean(new.class.model != testing.class)
+  
+}
+
+k <- 1:10
+
+class.df.plot <- data.frame(k, class.misclass)
+
+png(height=1200, width=1200, file="knn.model/knn.dist.plot.png", type = "cairo", pointsize = 20)
+kNNdistplot(small.sample.norm , k = 2)
+cl <- dbscan(small.sample.norm, eps = .5, minPts = 4)
+pairs(small.sample.norm, col = cl$cluster+1L)
+dev.off()
+
+
+
+class.knn.plot <- ggplot(class.df.plot, aes(k, class.misclass)) + geom_point() + geom_line() + scale_x_continuous("K Model", breaks = 1:10,
+              labels = 1:10) +
+     scale_y_continuous("Error Rate", breaks = seq(0,1, 0.1), labels = seq(0,1, 0.1)) + theme_bw(base_size = 12, base_family = "serif") 
+ggsave(plot = class.knn.plot, "knn.model/nknn.error.rate.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+# grid <- expand.grid(x=1:100, y=1:100)
+# classes.grid <- knn(small.data.training, small.data.testing, training.class, k = 1, prob = T)  # note last argument
+# prob.grid <- attr(classes.grid, "prob")
+# prob.grid <- ifelse(classes.grid == "blue", prob.grid, 1 - prob.grid)
+# 
+# # plot the boundary
+# contour(x=1:100, y=1:100, z=matrix(prob.grid, nrow=100), levels=0.5,
+#         col="grey", drawlabels=FALSE, lwd=2)
+# # add points from test dataset
+# points(small.data.testing, col=training.class)
+# 
+# d <- transform(melt(matrix(zp, np)), xp=xp[X1], yp=yp[X2])
+# ggplot(d, aes(xp, yp, z=value)) + 
+#   geom_contour() + 
+#   geom_point(aes(x1, x2, colour=y, z=NULL), data=TrainC)
+
+# machine.data <- small.sample.machine
+# 
+# colnames(machine.data) <- make.names(colnames(machine.data))
+# model <- knn3(Class ~ . , data=machine.data, k = 2)
+# decisionplot(model, machine.data, class = "Class", main = "kNN (2)") #not working
+
+```
+
+
+
+
+#Now let's work the full data
+
+```{r}
+
+#first let's convert the binary variables to 0s and 1.
+large.sample.machine <- wos.manual.articles.data %>% mutate(Class = ifelse(Selected == TRUE, "CSS", "Natural")) %>% select(-c(1:10, 13:18, 21)) %>% drop_na() %>% mutate_if(is.character, as.factor)
+
+large.sample.norm <- scale(large.sample.machine[, colnames(large.sample.machine) != "Class"]) #Scaling to control the variance levels
+large.sample.response <- as.data.frame(large.sample.machine$Class)
+
+# Let's check the variance
+
+large.sample.var <- var(large.sample.norm) # Also checks the covariance?
+p.mat.large <- cor.mtest(large.sample.norm)
+
+png(height=1200, width=1200, file="knn.model/large.corplot.free.png", type = "cairo", pointsize = 20)
+large.sample.cor.plot <- corrplot(var(large.sample.norm), method="pie")
+dev.off()
+png(height=1200, width=1200, file="knn.model/large.corplot.sig.png", type = "cairo", pointsize = 20)
+large.sample.cor.plot.sig <- corrplot(var(large.sample.norm), method="pie", p.mat = p.mat.large, sig.level = 0.01)
+dev.off() # Pearson's product moment
+
+full.large.data <- data.frame(large.sample.norm, large.sample.response)
+large.data.split <- sample.split(full.large.data, 0.7) 
+
+large.data.training <- full.large.data[large.data.split,]
+large.data.testing <- full.large.data[!large.data.split,]
+large.training.class <- large.data.training$large.sample.machine.Class
+large.testing.class <- large.data.testing$large.sample.machine.Class
+large.data.training <- large.data.training[, -5]
+large.data.testing <- large.data.testing[, -5]
+
+
+large.class.model <- knn(large.data.training, large.data.testing, large.training.class, k = 1)
+summary(large.class.model)
+large.class.model
+
+large.missclass.rate <- mean(large.class.model != large.testing.class)
+
+large.new.class.model <- NULL
+large.class.misclass <- NULL
+
+for (i in 1:20) {
+  large.new.class.model <- knn(large.data.training, large.data.testing, large.training.class, k = i)
+  large.class.misclass[i] <- mean(large.new.class.model != large.testing.class)
+  
+}
+
+k <- 1:20
+
+large.class.df.plot <- data.frame(k, large.class.misclass)
+
+png(height=1200, width=1200, file="knn.model/large.knn.dist.plot.png", type = "cairo", pointsize = 20)
+kNNdistplot(large.sample.norm , k = 3)
+cl <- dbscan(large.sample.norm, eps = .5, minPts = 4)
+pairs(large.sample.norm, col = cl$cluster+1L)
+dev.off()
+
+
+
+large.class.knn.plot <- ggplot(large.class.df.plot, aes(k, large.class.misclass)) + geom_point() + geom_line() + scale_x_continuous("K Model (Large Sample)", breaks = 1:20,
+              labels = 1:20) +
+     scale_y_continuous("Error Rate", breaks = seq(0,1, 0.1), labels = seq(0,1, 0.1)) + theme_bw(base_size = 12, base_family = "serif") 
+ggsave(plot = large.class.knn.plot, "knn.model/large.nknn.error.rate.png", dpi = 600, width = 6,  height = 5, units = 'in')
+
+
+```

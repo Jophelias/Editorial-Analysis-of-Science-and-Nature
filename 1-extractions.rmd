@@ -1,0 +1,177 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#just extracting the csv files and putting them all into a single file
+
+```{r}
+library(dplyr)
+library(readxl)
+library(stringr)
+library(tidyverse)
+library(lubridate) # This is to help deal with dates
+library(stringr)
+
+
+```
+
+```{r}
+
+
+files <- list.files(path = "wos.data/articles.letters", pattern = "*.xls", full.names = T)
+tbl <- sapply(files, read_excel, simplify=FALSE) 
+
+the.df <- NULL
+for (file in tbl) {
+  the.df <- bind_rows(the.df, as.data.frame(file[29:529,]))
+}
+colnames(the.df) <- as.data.frame(tbl[1])[28,]
+
+write.csv(the.df, "all.letters.articles.csv", row.names = F)
+
+```
+
+```{r}
+
+my.time.format <- function(date){
+  
+  return(as.POSIXct(strptime(date, format = "%B %d %Y")))
+}
+
+the.df.fixed <- the.df %>% select(c(-3:-5, -11:-13,-16,-18:-19)) %>% mutate_at(.funs = as.numeric ,.vars = c("Publication Year", "Volume", "Issue", "Beginning Page", "Ending Page", "Total Citations")) %>% mutate_at(.funs = my.time.format, .vars = "Publication Date") %>% mutate(day.of.month = day(`Publication Date`), month.of.year = month(`Publication Date`))%>% mutate(Number.of.authors = str_count(`Authors`, ';') + 1, nu.of.pages = ifelse(is.na(`Ending Page`), 1, `Ending Page` - `Beginning Page`))
+
+write.csv(the.df.fixed, "all.letters.articles.clean.csv", row.names = F)
+```
+
+
+
+```{r}
+
+
+articles.files <- list.files(path = "wos.data/articles.only", pattern = "*.xls", full.names = T)
+articles.tbl <- sapply(articles.files, read_excel, simplify=FALSE) 
+
+articles.df <- NULL
+for (file in articles.tbl) {
+  articles.df <- bind_rows(articles.df, as.data.frame(file[29:529,]))
+}
+colnames(articles.df) <- as.data.frame(articles.tbl[1])[28,]
+
+write.csv(articles.df, "only.articles.csv", row.names = F)
+
+articles.df.fixed <- articles.df %>% select(c(-3:-5, -11:-13,-16,-18:-19)) %>% mutate_at(.funs = as.numeric ,.vars = c("Publication Year", "Volume", "Issue", "Beginning Page", "Ending Page", "Total Citations")) %>% mutate_at(.funs = my.time.format, .vars = "Publication Date") %>% mutate(day.of.month = day(`Publication Date`), month.of.year = month(`Publication Date`))%>% mutate(Number.of.authors = str_count(`Authors`, ';') + 1, nu.of.pages = ifelse(is.na(`Ending Page`), 1, `Ending Page` - `Beginning Page`))
+
+write.csv(articles.df.fixed, "only.articles.clean.csv", row.names = F)
+
+```
+
+#Now let's write some code to take in the manually collected data, and use it to label the larger datasets
+
+```{r}
+
+manual.data <- read_excel("Article Listing.xlsx")
+
+test <- manual.data$Article %in% articles.df.fixed$Title
+
+test <- manual.data$Article %in% the.df.fixed$Title
+
+#%in% is for full matching. let's tru pmatch or charmatch for partial matching
+
+test.2 <- charmatch(manual.data$Article, articles.df.fixed$Title)
+test.3 <- charmatch(manual.data$doi, articles.df.fixed$DOI)
+
+# it wasnt catching all the articles because of things like hyphens and spelling mistakes. So I did it manually. 06-14-2019
+
+```
+
+#so now all the data has been aded to the manual sample, and the classifications has been added to the full data tables from WOS.
+# Consequently we need to do a few things, join from the articles + letters set and copy over the CSS classification to the "letters only set", then join the appropriate fields from the letters to the manual data set. This will mean all is ready for analysis.
+
+# 06-19-2019
+
+#Let's read in the manually modified data sets first.
+
+```{r}
+wos.manual.articles.data <- read.csv("only.articles.clean.csv")
+wos.manual.letters.articles.data <- read.csv("all.letters.articles.clean.csv")
+small.sample.data <- read_excel("article.manual.sample.xlsx")
+
+```
+
+#First let's produce/carry over the fields we want from the wos to the manual. We'll be doing it with a join.
+
+
+```{r}
+
+small.sample.data.join <- left_join(small.sample.data, data.frame(wos.manual.articles.data$DOI, wos.manual.articles.data$Number.of.authors) , by = c("doi" = "wos.manual.articles.data.DOI")) %>% select(-c(`Number of Authors`)) %>% rename(nu.authors = wos.manual.articles.data.Number.of.authors) %>% mutate_at(.funs = as.logical, .vars = c("Statistics", "Formulas", "Visuals", "Networks", "Simulation", "CSS", "SS", "Natural", "CS")) %>% mutate(Class = ifelse(`CSS` == T, "CSS", ifelse(`SS` == T, "SS", ifelse(`Natural`==T, "Natural", ifelse(`CS` == T, "CS", NA))))) %>% mutate_at(.funs = as.factor, .vars = c("Class")) %>% mutate(Journal = toupper(Journal)) %>% mutate_at(.funs = as.factor, .vars = c("Journal"))
+
+write.csv(small.sample.data.join, "final.small.sample.csv", row.names = F)
+
+
+
+#Now let's copy over the selected field from the articles and letters db to the just articles db and see if it all carries over.
+
+#apparently when readin in the data R decided to make the coi into a factor. Need to chage it in the read-in data as a vhracter vector
+
+wos.manual.articles.data <- wos.manual.articles.data %>% mutate_at(.funs = as.character, .vars = c("DOI"))
+
+wos.manual.letters.articles.data <- wos.manual.letters.articles.data %>% mutate_at(.funs = as.character, .vars = c("DOI"))
+
+wos.articles.subframe <- data.frame(as.character(wos.manual.articles.data$DOI), as.logical(wos.manual.articles.data$Selected)) %>% mutate_at(.funs = as.character, .vars = c("as.character.wos.manual.articles.data.DOI.")) %>% rename(DOI = as.character.wos.manual.articles.data.DOI.) %>% filter(!is.na(DOI)) #this works. turns out there were a few DOI NAs.
+
+
+articles.letters.join <- inner_join(wos.manual.letters.articles.data, wos.articles.subframe, by = c("DOI" = "DOI")) #this put the "selected" column we put together in the articles only data set in the letters and articles combined df. We won't use it but it's there anyway
+
+#test <- data.frame(as.character(wos.manual.articles.data$DOI), as.logical(wos.manual.articles.data$Selected)) %>% mutate_at(.funs = as.character, .vars = c("as.character.wos.manual.articles.data.DOI."))
+
+write.csv(wos.manual.articles.data, "articles.only.final.csv", row.names = F)
+write.csv(wos.manual.letters.articles.data, "letters.articles.final.csv", row.names = F)
+
+```
+
+# Final modofication step is to convert all the dates to numerical forms in the small sample dataset and export. Shoudl be easy
+
+
+```{r}
+
+final.small.sample <- small.sample.data.join %>% mutate(issue.year = year(Issue), issue.month = month(Issue), issue.day = day(Issue), received.year = year(Received), received.month = month(Received), received.day = day(Received), accepted.year = year(Accepted), accepted.month = month(Accepted), accepted.day = day(Accepted), time.to.acceptance = Accepted - Received, time.to.publish = Issue - Received, time.to.publish.from.acceptance = Issue - Accepted)
+
+#Looks like it's ready
+
+write.csv(final.small.sample, "final.small.sample.csv", row.names = F)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

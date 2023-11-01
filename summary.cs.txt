@@ -1,0 +1,77 @@
+   Category             doi              Article         
+ Length:3           Length:3           Length:3          
+ Class :character   Class :character   Class :character  
+ Mode  :character   Mode  :character   Mode  :character  
+                                                         
+                                                         
+                                                         
+    Journal  Google citations    Author              Length   
+ NATURE :1   Min.   : 2.00    Length:3           Min.   :4.0  
+ SCIENCE:2   1st Qu.:24.00    Class :character   1st Qu.:5.5  
+             Median :46.00    Mode  :character   Median :7.0  
+             Mean   :40.67                       Mean   :6.0  
+             3rd Qu.:60.00                       3rd Qu.:7.0  
+             Max.   :74.00                       Max.   :7.0  
+ CitationCount       Issue                    
+ Min.   : 49.0   Min.   :2017-11-10 00:00:00  
+ 1st Qu.: 58.5   1st Qu.:2017-12-18 12:00:00  
+ Median : 68.0   Median :2018-01-26 00:00:00  
+ Mean   : 76.0   Mean   :2018-05-20 00:00:00  
+ 3rd Qu.: 89.5   3rd Qu.:2018-08-23 12:00:00  
+ Max.   :111.0   Max.   :2019-03-21 00:00:00  
+    Received                      Accepted                  
+ Min.   :2017-02-14 00:00:00   Min.   :2017-09-25 00:00:00  
+ 1st Qu.:2017-04-19 00:00:00   1st Qu.:2017-11-03 00:00:00  
+ Median :2017-06-22 00:00:00   Median :2017-12-12 00:00:00  
+ Mean   :2017-08-29 16:00:00   Mean   :2018-03-26 08:00:00  
+ 3rd Qu.:2017-12-06 00:00:00   3rd Qu.:2018-06-25 12:00:00  
+ Max.   :2018-05-22 00:00:00   Max.   :2019-01-07 00:00:00  
+ Statistics      Formulas       Visuals         Networks      
+ Mode:logical   Mode :logical   Mode:logical   Mode :logical  
+ TRUE:3         FALSE:1         TRUE:3         FALSE:3        
+                TRUE :2                                       
+                                                              
+                                                              
+                                                              
+ Simulation         CSS              SS           Natural       
+ Mode :logical   Mode :logical   Mode :logical   Mode :logical  
+ FALSE:1         FALSE:3         FALSE:3         FALSE:3        
+ TRUE :2                                                        
+                                                                
+                                                                
+                                                                
+    CS            nu.authors      Class     issue.year  
+ Mode:logical   Min.   :2.0   CS     :3   Min.   :2017  
+ TRUE:3         1st Qu.:2.5   CSS    :0   1st Qu.:2018  
+                Median :3.0   Natural:0   Median :2018  
+                Mean   :4.0   SS     :0   Mean   :2018  
+                3rd Qu.:5.0               3rd Qu.:2018  
+                Max.   :7.0               Max.   :2019  
+  issue.month   issue.day    received.year  received.month 
+ Min.   : 1   Min.   :10.0   Min.   :2017   Min.   :2.000  
+ 1st Qu.: 2   1st Qu.:15.5   1st Qu.:2017   1st Qu.:3.500  
+ Median : 3   Median :21.0   Median :2017   Median :5.000  
+ Mean   : 5   Mean   :19.0   Mean   :2017   Mean   :4.333  
+ 3rd Qu.: 7   3rd Qu.:23.5   3rd Qu.:2018   3rd Qu.:5.500  
+ Max.   :11   Max.   :26.0   Max.   :2018   Max.   :6.000  
+  received.day   accepted.year  accepted.month    accepted.day  
+ Min.   :14.00   Min.   :2017   Min.   : 1.000   Min.   : 7.00  
+ 1st Qu.:18.00   1st Qu.:2017   1st Qu.: 5.000   1st Qu.: 9.50  
+ Median :22.00   Median :2017   Median : 9.000   Median :12.00  
+ Mean   :19.33   Mean   :2018   Mean   : 7.333   Mean   :14.67  
+ 3rd Qu.:22.00   3rd Qu.:2018   3rd Qu.:10.500   3rd Qu.:18.50  
+ Max.   :22.00   Max.   :2019   Max.   :12.000   Max.   :25.00  
+ time.to.acceptance time.to.publish time.to.publish.from.acceptance
+ Min.   :173.0      Min.   :218.0   Min.   :45.00                  
+ 1st Qu.:198.0      1st Qu.:243.5   1st Qu.:45.50                  
+ Median :223.0      Median :269.0   Median :46.00                  
+ Mean   :208.7      Mean   :263.3   Mean   :54.67                  
+ 3rd Qu.:226.5      3rd Qu.:286.0   3rd Qu.:59.50                  
+ Max.   :230.0      Max.   :303.0   Max.   :73.00                  
+ cite.time.adj   
+ Min.   :0.2000  
+ 1st Qu.:0.3840  
+ Median :0.5679  
+ Mean   :0.6083  
+ 3rd Qu.:0.8125  
+ Max.   :1.0571  
